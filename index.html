@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Start or Sit</title>
-  <meta name="description" content="A just-for-fun start or sit decider for fantasy football.">
+  <meta name="description" content="A fantasy football start or sit decider that uses weekly projections, recent stats, and defensive matchups.">
   <style>
     :root {
       --bg: #0f1419;
@@ -14,6 +14,7 @@
       --muted: #8b97a3;
       --start: #22c55e;
       --bench: #ef4444;
+      --warn: #f59e0b;
       --input-bg: #10161c;
     }
 
@@ -34,11 +35,11 @@
 
     .card {
       width: 100%;
-      max-width: 420px;
+      max-width: 460px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 28px 22px;
+      padding: 28px 20px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
 
@@ -53,11 +54,20 @@
     h1 .accent-sit { color: var(--bench); }
 
     .tagline {
-      margin: 0 0 24px;
+      margin: 0 0 6px;
       text-align: center;
       color: var(--muted);
       font-size: 0.95rem;
     }
+
+    .status {
+      margin: 0 0 20px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status.warn { color: var(--warn); }
 
     label {
       display: block;
@@ -66,21 +76,40 @@
       margin-bottom: 6px;
     }
 
-    input {
+    input, select {
       width: 100%;
-      padding: 14px;
+      padding: 13px;
       font-size: 1rem;
       color: var(--text);
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
-    input:focus {
+    input:focus, select:focus {
       outline: none;
       border-color: var(--start);
     }
+
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 14px 2px;
+      margin: 0 0 14px;
+    }
+
+    legend {
+      padding: 0 6px;
+      font-weight: 600;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row > div { flex: 1; min-width: 0; }
 
     button {
       width: 100%;
@@ -103,6 +132,15 @@
       background: transparent;
       color: var(--text);
       border: 1px solid var(--border);
+    }
+
+    .link-btn {
+      background: none;
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 0.85rem;
+      text-decoration: underline;
+      padding: 10px 0 0;
     }
 
     .error {
@@ -145,7 +183,7 @@
     }
 
     .start-name {
-      font-size: 2.2rem;
+      font-size: 2.1rem;
       font-weight: 800;
       color: var(--start);
       word-break: break-word;
@@ -166,6 +204,12 @@
       word-break: break-word;
     }
 
+    .sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
     .reason {
       text-align: center;
       font-size: 1rem;
@@ -176,10 +220,41 @@
     .confidence {
       text-align: center;
       color: var(--muted);
-      margin: 0 0 22px;
+      margin: 0 0 18px;
     }
 
     .confidence strong { color: var(--text); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      word-break: break-word;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 400;
+      width: 38%;
+    }
+
+    thead th { color: var(--text); font-weight: 600; }
+
+    .notes {
+      font-size: 0.85rem;
+      color: var(--warn);
+      margin: 0 0 16px;
+      padding-left: 18px;
+    }
 
     .actions {
       display: flex;
@@ -196,9 +271,11 @@
 
     footer {
       margin-top: 18px;
+      max-width: 460px;
       font-size: 0.8rem;
       color: var(--muted);
       text-align: center;
+      line-height: 1.4;
     }
 
     @media (min-width: 600px) {
@@ -211,18 +288,95 @@
 <body>
   <main class="card">
     <h1><span class="accent-start">Start</span> or <span class="accent-sit">Sit</span></h1>
-    <p class="tagline">Can't decide? Let the app pick.</p>
+    <p class="tagline">PPR start/sit help for this week.</p>
+    <p id="status" class="status">Loading this week's data...</p>
 
-    <!-- Input form -->
+    <!-- Live mode: type two names -->
     <section id="form-view">
       <label for="player1">Player 1</label>
-      <input id="player1" type="text" placeholder="Enter a player" autocomplete="off">
+      <input id="player1" type="text" list="player-list" placeholder="Start typing a name" autocomplete="off">
 
       <label for="player2">Player 2</label>
-      <input id="player2" type="text" placeholder="Enter a player" autocomplete="off">
+      <input id="player2" type="text" list="player-list" placeholder="Start typing a name" autocomplete="off">
+
+      <datalist id="player-list"></datalist>
 
       <button id="decide-btn" class="btn-primary" type="button">Decide</button>
       <p id="error" class="error" role="alert"></p>
+      <button id="to-manual-btn" class="link-btn" type="button">Enter stats manually instead</button>
+    </section>
+
+    <!-- Manual mode: user types the numbers -->
+    <section id="manual-view" class="hidden">
+      <fieldset>
+        <legend>Player 1</legend>
+        <label for="m1-name">Name</label>
+        <input id="m1-name" type="text" autocomplete="off">
+        <div class="row">
+          <div>
+            <label for="m1-proj">Projected PPR pts</label>
+            <input id="m1-proj" type="number" inputmode="decimal" step="0.1" min="0">
+          </div>
+          <div>
+            <label for="m1-recent">Avg last 3 games</label>
+            <input id="m1-recent" type="number" inputmode="decimal" step="0.1" min="0" placeholder="Optional">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="m1-rank">Opp. rank vs pos.</label>
+            <input id="m1-rank" type="number" inputmode="numeric" min="1" max="32" placeholder="1-32">
+          </div>
+          <div>
+            <label for="m1-status">Status</label>
+            <select id="m1-status">
+              <option value="">Healthy</option>
+              <option>Questionable</option>
+              <option>Doubtful</option>
+              <option>Out</option>
+              <option>Bye</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Player 2</legend>
+        <label for="m2-name">Name</label>
+        <input id="m2-name" type="text" autocomplete="off">
+        <div class="row">
+          <div>
+            <label for="m2-proj">Projected PPR pts</label>
+            <input id="m2-proj" type="number" inputmode="decimal" step="0.1" min="0">
+          </div>
+          <div>
+            <label for="m2-recent">Avg last 3 games</label>
+            <input id="m2-recent" type="number" inputmode="decimal" step="0.1" min="0" placeholder="Optional">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="m2-rank">Opp. rank vs pos.</label>
+            <input id="m2-rank" type="number" inputmode="numeric" min="1" max="32" placeholder="1-32">
+          </div>
+          <div>
+            <label for="m2-status">Status</label>
+            <select id="m2-status">
+              <option value="">Healthy</option>
+              <option>Questionable</option>
+              <option>Doubtful</option>
+              <option>Out</option>
+              <option>Bye</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <p class="sub">Opponent rank: 1 = toughest defense against that position, 32 = easiest. Find projections and ranks in your league app (ESPN, Sleeper, Yahoo).</p>
+
+      <button id="manual-decide-btn" class="btn-primary" type="button">Decide</button>
+      <p id="manual-error" class="error" role="alert"></p>
+      <button id="to-live-btn" class="link-btn hidden" type="button">Back to live data</button>
     </section>
 
     <!-- Flip animation -->
@@ -235,143 +389,537 @@
       <div class="start-box pop">
         <div class="label-start">Start</div>
         <div id="start-name" class="start-name"></div>
+        <div id="start-sub" class="sub"></div>
       </div>
       <div class="bench-box">
         <div class="label-bench">Bench</div>
         <div id="bench-name" class="bench-name"></div>
+        <div id="bench-sub" class="sub"></div>
       </div>
       <p id="reason" class="reason"></p>
       <p class="confidence">Confidence: <strong id="confidence"></strong></p>
+
+      <table>
+        <thead>
+          <tr><th></th><th id="col-a"></th><th id="col-b"></th></tr>
+        </thead>
+        <tbody id="compare-body"></tbody>
+      </table>
+      <ul id="notes" class="notes"></ul>
+
       <div class="actions">
-        <button id="again-btn" class="btn-primary" type="button">Decide again</button>
-        <button id="new-btn" class="btn-secondary" type="button">New matchup</button>
+        <button id="new-btn" class="btn-primary" type="button">New matchup</button>
+        <button id="edit-btn" class="btn-secondary" type="button">Edit players</button>
       </div>
     </section>
   </main>
 
-  <footer>Just for fun. Picks are random, not real advice.</footer>
+  <footer>
+    Live data from the Sleeper public API. Recommendations are estimates based on projections,
+    recent games, and matchups, not guarantees.
+  </footer>
 
   <script>
-    const reasons = [
-      "Gut feeling says {name}. Trust the gut.",
-      "If {name} busts, blame the app, not yourself.",
-      "The stars have aligned for {name} this week.",
-      "{name} has main character energy right now.",
-      "A coin flip would have said {name} too. Probably.",
-      "Your league chat will be quiet after {name} goes off.",
-      "{name} just feels like a big week waiting to happen.",
-      "Fortune favors the bold. Fortune favors {name}.",
-      "The vibes are immaculate for {name}.",
-      "Overthinking is the enemy. Start {name} and move on.",
-      "{name} is due. That's just math. (It is not math.)",
-      "Somewhere, a fantasy expert agrees with {name}. Maybe."
-    ];
+    // ---------- Settings ----------
+    const API = "https://api.sleeper.app";
+    const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"];
+    const OUT_STATUSES = ["Out", "IR", "PUP", "Sus", "COV", "NA"];
+    const PROJ_WEIGHT = 0.6;     // share of base score from this week's projection
+    const RECENT_WEIGHT = 0.4;   // share from average of last 3 games
+    const MATCHUP_SWING = 0.08;  // easiest/toughest matchup moves score up/down by up to 8%
+    const DOUBTFUL_FACTOR = 0.3; // doubtful players keep 30% of their score
 
-    const player1 = document.getElementById("player1");
-    const player2 = document.getElementById("player2");
-    const decideBtn = document.getElementById("decide-btn");
-    const errorEl = document.getElementById("error");
-    const formView = document.getElementById("form-view");
-    const flipView = document.getElementById("flip-view");
-    const flipper = document.getElementById("flipper");
-    const resultView = document.getElementById("result-view");
-    const startName = document.getElementById("start-name");
-    const benchName = document.getElementById("bench-name");
-    const reasonEl = document.getElementById("reason");
-    const confidenceEl = document.getElementById("confidence");
-    const againBtn = document.getElementById("again-btn");
-    const newBtn = document.getElementById("new-btn");
+    // ---------- Elements ----------
+    const $ = function (id) { return document.getElementById(id); };
+    const views = ["form-view", "manual-view", "flip-view", "result-view"].map($);
 
-    let names = [];
+    // ---------- State ----------
+    let live = null;      // { season, week, players: [...], defense: {...} }
+    let lastMode = "live";
     let flipping = false;
 
+    // ---------- Helpers ----------
     function show(view) {
-      [formView, flipView, resultView].forEach(function (v) {
-        v.classList.toggle("hidden", v !== view);
+      views.forEach(function (v) { v.classList.toggle("hidden", v !== view); });
+    }
+
+    function setStatus(text, warn) {
+      $("status").textContent = text;
+      $("status").classList.toggle("warn", !!warn);
+    }
+
+    function normName(s) {
+      return String(s || "")
+        .toLowerCase()
+        .replace(/\(.*\)/, "")
+        .replace(/[.'’]/g, "")
+        .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, "")
+        .replace(/[^a-z0-9 ]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function ordinal(n) {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    function fmt(n) {
+      return n == null || isNaN(n) ? "n/a" : (Math.round(n * 10) / 10).toFixed(1);
+    }
+
+    function asArray(data) {
+      if (Array.isArray(data)) return data;
+      if (data && typeof data === "object") return Object.values(data);
+      return [];
+    }
+
+    function getJSON(url) {
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
       });
     }
 
-    function randomInt(min, max) {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+    function weekURL(kind, season, week) {
+      const pos = POSITIONS.map(function (p) { return "position%5B%5D=" + p; }).join("&");
+      return API + "/" + kind + "/nfl/" + season + "/" + week + "?season_type=regular&" + pos;
     }
 
-    function validate() {
-      const a = player1.value.trim();
-      const b = player2.value.trim();
-      if (!a || !b) return { error: "Enter both players first." };
-      if (a.toLowerCase() === b.toLowerCase()) return { error: "Enter two different players." };
-      return { names: [a, b] };
+    // Pull the fields we need out of one Sleeper projection/stats row
+    function readRow(r) {
+      const p = r.player || {};
+      const stats = r.stats || {};
+      const name = ((p.first_name || "") + " " + (p.last_name || "")).trim();
+      return {
+        id: r.player_id,
+        name: name,
+        pos: p.position || r.position || "",
+        team: r.team || p.team || "",
+        opp: r.opponent || "",
+        pts: typeof stats.pts_ppr === "number" ? stats.pts_ppr : null,
+        played: stats.gp == null ? typeof stats.pts_ppr === "number" : stats.gp > 0,
+        injury: p.injury_status || ""
+      };
     }
 
-    function decide() {
+    // ---------- Live data ----------
+    async function loadLive() {
+      const state = await getJSON(API + "/v1/state/nfl");
+      if (state.season_type !== "regular") {
+        throw new Error("It isn't the NFL regular season right now.");
+      }
+      const season = state.season;
+      const week = Number(state.week) || Number(state.display_week);
+      if (!week) throw new Error("Couldn't tell which week it is.");
+
+      const projRows = asArray(await getJSON(weekURL("projections", season, week))).map(readRow);
+
+      // Past weeks' stats feed recent form and defense rankings.
+      // If they fail, the app still works off projections alone.
+      const pastWeeks = [];
+      for (let w = 1; w < week; w++) pastWeeks.push(w);
+      const results = await Promise.allSettled(pastWeeks.map(function (w) {
+        return getJSON(weekURL("stats", season, w)).then(function (d) {
+          return { week: w, rows: asArray(d).map(readRow) };
+        });
+      }));
+      const statWeeks = results
+        .filter(function (r) { return r.status === "fulfilled"; })
+        .map(function (r) { return r.value; });
+
+      // Recent games per player (most recent first)
+      const history = {};
+      statWeeks.sort(function (a, b) { return b.week - a.week; }).forEach(function (sw) {
+        sw.rows.forEach(function (row) {
+          if (!row.played || row.pts == null) return;
+          (history[row.id] = history[row.id] || []).push(row.pts);
+        });
+      });
+
+      // Fantasy points each team's defense allows per game, by position
+      const allowed = {}; // allowed[team][pos] = { total, weeks:Set }
+      statWeeks.forEach(function (sw) {
+        sw.rows.forEach(function (row) {
+          if (!row.opp || !row.pos || row.pts == null || !row.played) return;
+          const t = (allowed[row.opp] = allowed[row.opp] || {});
+          const cell = (t[row.pos] = t[row.pos] || { total: 0, weeks: new Set() });
+          cell.total += row.pts;
+          cell.weeks.add(sw.week);
+        });
+      });
+      const defense = {}; // defense[pos][team] = { avg, rank, of }
+      POSITIONS.forEach(function (pos) {
+        const list = [];
+        Object.keys(allowed).forEach(function (team) {
+          const cell = allowed[team][pos];
+          if (cell && cell.weeks.size) list.push({ team: team, avg: cell.total / cell.weeks.size });
+        });
+        list.sort(function (a, b) { return a.avg - b.avg; }); // fewest allowed = toughest = rank 1
+        defense[pos] = {};
+        list.forEach(function (d, i) {
+          defense[pos][d.team] = { avg: d.avg, rank: i + 1, of: list.length };
+        });
+      });
+
+      // Player list: everyone with a projection this week, plus anyone who
+      // played earlier but has no projection (likely on bye)
+      const byId = {};
+      projRows.forEach(function (row) {
+        if (!row.name || POSITIONS.indexOf(row.pos) === -1) return;
+        byId[row.id] = row;
+      });
+      statWeeks.forEach(function (sw) {
+        sw.rows.forEach(function (row) {
+          if (!row.name || byId[row.id] || POSITIONS.indexOf(row.pos) === -1 || !row.played) return;
+          byId[row.id] = { id: row.id, name: row.name, pos: row.pos, team: row.team, opp: "", pts: null, injury: row.injury };
+        });
+      });
+      const players = Object.values(byId).map(function (p) {
+        const games = (history[p.id] || []).slice(0, 3);
+        p.recent = games.length ? games.reduce(function (a, b) { return a + b; }, 0) / games.length : null;
+        p.recentGames = games.length;
+        p.key = normName(p.name);
+        return p;
+      });
+
+      return { season: season, week: week, players: players, defense: defense, statWeeks: statWeeks.length };
+    }
+
+    function fillPlayerList() {
+      const sorted = live.players.slice().sort(function (a, b) { return (b.pts || 0) - (a.pts || 0); });
+      const frag = document.createDocumentFragment();
+      sorted.forEach(function (p) {
+        const opt = document.createElement("option");
+        opt.value = p.name + " (" + p.pos + (p.team ? ", " + p.team : "") + ")";
+        frag.appendChild(opt);
+      });
+      $("player-list").appendChild(frag);
+    }
+
+    // Find a player from what the user typed. "Name (POS, TEAM)" picks an exact
+    // player; a plain name picks the highest-projected match.
+    function findPlayer(text) {
+      const key = normName(text);
+      const tag = String(text).match(/\(([A-Z]+)(?:,\s*([A-Z]+))?\)\s*$/);
+      let matches = live.players.filter(function (p) { return p.key === key; });
+      if (tag) {
+        const exact = matches.filter(function (p) {
+          return p.pos === tag[1] && (!tag[2] || p.team === tag[2]);
+        });
+        if (exact.length) matches = exact;
+      }
+      if (!matches.length) return null;
+      matches.sort(function (a, b) { return (b.pts || 0) - (a.pts || 0); });
+      return matches[0];
+    }
+
+    function liveCandidate(p) {
+      const bye = !p.opp || p.pts == null;
+      const d = !bye && live.defense[p.pos] ? live.defense[p.pos][p.opp] : null;
+      return {
+        name: p.name,
+        pos: p.pos,
+        team: p.team,
+        opp: bye ? "" : p.opp,
+        proj: bye ? 0 : p.pts,
+        recent: p.recent,
+        recentGames: p.recentGames,
+        rank: d ? d.rank : null,
+        rankOf: d ? d.of : null,
+        allowedAvg: d ? d.avg : null,
+        status: bye ? "Bye" : p.injury
+      };
+    }
+
+    // ---------- Scoring ----------
+    // base = 60% projection + 40% average of last 3 games (projection only if no games)
+    // matchup = rank 1 (toughest) lowers score by up to 8%, rank 32 (easiest) raises it by up to 8%
+    // Out/Bye = 0, Doubtful = 30% of score
+    function score(c) {
+      if (c.status === "Bye" || OUT_STATUSES.indexOf(c.status) !== -1) return 0;
+      let base = c.recent != null ? PROJ_WEIGHT * c.proj + RECENT_WEIGHT * c.recent : c.proj;
+      let adj = 1;
+      if (c.rank != null) {
+        const of = c.rankOf || 32;
+        const mid = (of + 1) / 2;
+        adj = 1 + ((c.rank - mid) / (mid - 1 || 1)) * MATCHUP_SWING;
+      }
+      let s = base * adj;
+      if (c.status === "Doubtful") s *= DOUBTFUL_FACTOR;
+      return s;
+    }
+
+    function matchupText(c) {
+      if (c.rank == null) return "";
+      const of = c.rankOf || 32;
+      const easiest = of - c.rank + 1; // 1 = gives up the most
+      if (!c.opp || !c.pos) {
+        return "their opponent ranks " + c.rank + " of " + of + " against the position (" + of + " = easiest)";
+      }
+      const posName = c.pos === "DEF" ? "defenses" : c.pos + "s";
+      return c.opp + " gives up the " + ordinal(easiest) + "-most PPR points to " + posName;
+    }
+
+    function buildReason(win, lose) {
+      if (win.score === 0 && lose.score === 0) {
+        return "Neither player is expected to play this week. Look for a replacement.";
+      }
+      if (lose.score === 0) {
+        return lose.name + " is " + (lose.status === "Bye" ? "on bye" : "listed as " + lose.status) +
+          ", so " + win.name + " is the start.";
+      }
+      const parts = [];
+      if (win.proj > lose.proj) {
+        parts.push(win.name + " is projected for " + fmt(win.proj) + " PPR points vs " + fmt(lose.proj) + " for " + lose.name);
+      } else if (win.recent != null && lose.recent != null && win.recent > lose.recent) {
+        parts.push(win.name + " has averaged " + fmt(win.recent) + " PPR points over the last " +
+          win.recentGames + " games vs " + fmt(lose.recent) + " for " + lose.name);
+      } else {
+        parts.push(win.name + " comes out ahead once recent games and matchup are factored in");
+      }
+      if (win.rank != null && lose.rank != null && win.rank > lose.rank) {
+        parts.push("and has the easier matchup: " + matchupText(win));
+      } else if (lose.rank != null && win.rank != null && lose.rank > win.rank) {
+        parts.push("even though " + lose.name + " has the easier matchup");
+      }
+      return parts.join(", ") + ".";
+    }
+
+    function confidence(a, b) {
+      const hi = Math.max(a, b), lo = Math.min(a, b);
+      if (hi === 0) return "None";
+      const gap = (hi - lo) / hi;
+      if (lo === 0) return "High (other player not playing)";
+      if (gap < 0.08) return "Low - close call";
+      if (gap < 0.2) return "Medium";
+      return "High";
+    }
+
+    // ---------- Decide ----------
+    function checkNames(a, b) {
+      if (!a || !b) return "Enter both players first.";
+      if (normName(a) === normName(b)) return "Enter two different players.";
+      return "";
+    }
+
+    function decideLive() {
       if (flipping) return;
-      const check = validate();
-      if (check.error) {
-        errorEl.textContent = check.error;
+      const a = $("player1").value.trim();
+      const b = $("player2").value.trim();
+      const err = checkNames(a, b);
+      if (err) { $("error").textContent = err; return; }
+      if (!live) {
+        $("error").textContent = "Live data isn't loaded. Use manual entry.";
         return;
       }
-      errorEl.textContent = "";
-      names = check.names;
-      runPick();
+      const pa = findPlayer(a);
+      const pb = findPlayer(b);
+      const missing = [!pa ? a : null, !pb ? b : null].filter(Boolean);
+      if (missing.length) {
+        $("error").textContent = "Couldn't find " + missing.join(" or ") +
+          " in this week's data. Pick a name from the list or use manual entry.";
+        return;
+      }
+      if (pa.id === pb.id) { $("error").textContent = "Enter two different players."; return; }
+      $("error").textContent = "";
+      lastMode = "live";
+      run(liveCandidate(pa), liveCandidate(pb));
     }
 
-    function runPick() {
-      flipping = true;
-      show(flipView);
+    function readManual(n) {
+      const num = function (id) {
+        const v = $(id).value.trim();
+        return v === "" ? null : Number(v);
+      };
+      return {
+        name: $("m" + n + "-name").value.trim(),
+        pos: "",
+        team: "",
+        opp: "",
+        proj: num("m" + n + "-proj"),
+        recent: num("m" + n + "-recent"),
+        recentGames: 3,
+        rank: num("m" + n + "-rank"),
+        rankOf: 32,
+        allowedAvg: null,
+        status: $("m" + n + "-status").value
+      };
+    }
 
-      // Flip between the two names for about one second
+    function decideManual() {
+      if (flipping) return;
+      const a = readManual(1);
+      const b = readManual(2);
+      const err = checkNames(a.name, b.name);
+      if (err) { $("manual-error").textContent = err; return; }
+      const playing = function (c) { return c.status !== "Bye" && c.status !== "Out"; };
+      if ((playing(a) && a.proj == null) || (playing(b) && b.proj == null)) {
+        $("manual-error").textContent = "Enter a projection for both players.";
+        return;
+      }
+      for (const c of [a, b]) {
+        if (c.rank != null && (c.rank < 1 || c.rank > 32 || !Number.isInteger(c.rank))) {
+          $("manual-error").textContent = "Opponent rank must be a whole number from 1 to 32.";
+          return;
+        }
+        if (c.proj == null) c.proj = 0;
+      }
+      $("manual-error").textContent = "";
+      lastMode = "manual";
+      run(a, b);
+    }
+
+    function run(a, b) {
+      flipping = true;
+      show($("flip-view"));
       let i = 0;
-      flipper.textContent = names[0];
+      $("flipper").textContent = a.name;
       const timer = setInterval(function () {
         i++;
-        flipper.textContent = names[i % 2];
+        $("flipper").textContent = i % 2 ? b.name : a.name;
       }, 90);
+
+      a.score = score(a);
+      b.score = score(b);
 
       setTimeout(function () {
         clearInterval(timer);
-        const winner = randomInt(0, 1);
-        const chosen = names[winner];
-        const other = names[1 - winner];
-        const reason = reasons[randomInt(0, reasons.length - 1)];
-
-        startName.textContent = chosen;
-        benchName.textContent = other;
-        reasonEl.textContent = reason.split("{name}").join(chosen);
-        confidenceEl.textContent = randomInt(51, 99) + "%";
-
-        // Restart the pop animation on each result
-        const box = resultView.querySelector(".start-box");
-        box.classList.remove("pop");
-        void box.offsetWidth;
-        box.classList.add("pop");
-
-        show(resultView);
+        // Ties go to the higher projection, then to Player 1
+        const aWins = a.score > b.score || (a.score === b.score && a.proj >= b.proj);
+        renderResult(aWins ? a : b, aWins ? b : a, a, b);
+        show($("result-view"));
         flipping = false;
       }, 1000);
     }
 
-    function newMatchup() {
-      player1.value = "";
-      player2.value = "";
-      errorEl.textContent = "";
-      names = [];
-      show(formView);
-      player1.focus();
+    function describe(c) {
+      const bits = [];
+      if (c.pos) bits.push(c.pos + (c.team ? ", " + c.team : ""));
+      if (c.status === "Bye") bits.push("on bye");
+      else if (c.opp) bits.push("vs " + c.opp);
+      return bits.join(" - ");
     }
 
-    decideBtn.addEventListener("click", decide);
-    againBtn.addEventListener("click", function () {
-      if (!flipping) runPick();
-    });
-    newBtn.addEventListener("click", newMatchup);
+    function renderResult(win, lose, a, b) {
+      const nobody = win.score === 0 && lose.score === 0;
+      $("result-view").querySelector(".start-box").classList.toggle("hidden", nobody);
+      $("result-view").querySelector(".bench-box .label-bench").textContent = nobody ? "Bench both" : "Bench";
+      $("start-name").textContent = win.name;
+      $("start-sub").textContent = describe(win);
+      $("bench-name").textContent = nobody ? a.name + " and " + b.name : lose.name;
+      $("bench-sub").textContent = nobody ? "" : describe(lose);
+      $("reason").textContent = buildReason(win, lose);
+      $("confidence").textContent = confidence(win.score, lose.score);
 
-    [player1, player2].forEach(function (input) {
-      input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") decide();
+      $("col-a").textContent = a.name;
+      $("col-b").textContent = b.name;
+      const rankCell = function (c) {
+        if (c.rank == null) return "n/a";
+        return c.rank + " of " + (c.rankOf || 32);
+      };
+      const rows = [
+        ["Projected PPR", fmt(a.proj), fmt(b.proj)],
+        ["Avg last 3 games", fmt(a.recent), fmt(b.recent)],
+        ["Opp. rank vs pos. (32 = easiest)", rankCell(a), rankCell(b)],
+        ["Status", a.status || "Healthy", b.status || "Healthy"],
+        ["Score", fmt(a.score), fmt(b.score)]
+      ];
+      if (lastMode === "live") {
+        rows.splice(3, 0, ["Opp. allows per game", fmt(a.allowedAvg), fmt(b.allowedAvg)]);
+      }
+      const body = $("compare-body");
+      body.textContent = "";
+      rows.forEach(function (r) {
+        const tr = document.createElement("tr");
+        r.forEach(function (cell, idx) {
+          const td = document.createElement(idx === 0 ? "th" : "td");
+          td.textContent = cell;
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
       });
-      input.addEventListener("input", function () {
-        errorEl.textContent = "";
+
+      const notes = $("notes");
+      notes.textContent = "";
+      [a, b].forEach(function (c) {
+        let msg = "";
+        if (c.status === "Questionable") msg = c.name + " is questionable. Check the injury report before kickoff.";
+        if (c.status === "Doubtful") msg = c.name + " is doubtful, so their score was cut to 30%.";
+        if (c.status && OUT_STATUSES.indexOf(c.status) !== -1) msg = c.name + " is listed as " + c.status + ".";
+        if (c.status === "Bye") msg = c.name + " is on bye this week.";
+        if (msg) {
+          const li = document.createElement("li");
+          li.textContent = msg;
+          notes.appendChild(li);
+        }
       });
+      if (a.pos && b.pos && a.pos !== b.pos) {
+        const li = document.createElement("li");
+        li.textContent = "Different positions. Make sure both can fill the same lineup spot (for example, FLEX).";
+        notes.appendChild(li);
+      }
+
+      const box = $("result-view").querySelector(".start-box");
+      box.classList.remove("pop");
+      void box.offsetWidth;
+      box.classList.add("pop");
+    }
+
+    function newMatchup() {
+      ["player1", "player2", "m1-name", "m1-proj", "m1-recent", "m1-rank",
+       "m2-name", "m2-proj", "m2-recent", "m2-rank"].forEach(function (id) { $(id).value = ""; });
+      $("m1-status").value = "";
+      $("m2-status").value = "";
+      $("error").textContent = "";
+      $("manual-error").textContent = "";
+      goTo(live ? "live" : "manual");
+    }
+
+    function goTo(mode) {
+      if (mode === "live") {
+        show($("form-view"));
+        $("player1").focus();
+      } else {
+        show($("manual-view"));
+        $("to-live-btn").classList.toggle("hidden", !live);
+        $("m1-name").focus();
+      }
+    }
+
+    // ---------- Events ----------
+    $("decide-btn").addEventListener("click", decideLive);
+    $("manual-decide-btn").addEventListener("click", decideManual);
+    $("new-btn").addEventListener("click", newMatchup);
+    $("edit-btn").addEventListener("click", function () { goTo(lastMode); });
+    $("to-manual-btn").addEventListener("click", function () { goTo("manual"); });
+    $("to-live-btn").addEventListener("click", function () { goTo("live"); });
+
+    ["player1", "player2"].forEach(function (id) {
+      $(id).addEventListener("keydown", function (e) { if (e.key === "Enter") decideLive(); });
+      $(id).addEventListener("input", function () { $("error").textContent = ""; });
+    });
+    $("manual-view").querySelectorAll("input").forEach(function (el) {
+      el.addEventListener("keydown", function (e) { if (e.key === "Enter") decideManual(); });
+      el.addEventListener("input", function () { $("manual-error").textContent = ""; });
+    });
+
+    // ---------- Start ----------
+    $("decide-btn").disabled = true;
+    loadLive().then(function (data) {
+      live = data;
+      fillPlayerList();
+      $("decide-btn").disabled = false;
+      let msg = "Week " + data.week + ", " + data.season + " season. " + data.players.length + " players loaded.";
+      if (data.week > 1 && data.statWeeks < data.week - 1) {
+        msg += " Some past weeks didn't load, so matchup data may be incomplete.";
+      }
+      setStatus(msg, data.week > 1 && data.statWeeks < data.week - 1);
+    }).catch(function (err) {
+      live = null;
+      setStatus("Couldn't load live data (" + err.message + "). Enter stats manually below.", true);
+      goTo("manual");
     });
   </script>
 </body>
