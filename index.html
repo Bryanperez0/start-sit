@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Start or Sit</title>
+  <meta name="description" content="A just-for-fun start or sit decider for fantasy football.">
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2129;
+      --border: #2a333d;
+      --text: #e8edf2;
+      --muted: #8b97a3;
+      --start: #22c55e;
+      --bench: #ef4444;
+      --input-bg: #10161c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 22px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 2rem;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    h1 .accent-start { color: var(--start); }
+    h1 .accent-sit { color: var(--bench); }
+
+    .tagline {
+      margin: 0 0 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      color: var(--text);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--start);
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.6; cursor: default; }
+
+    .btn-primary {
+      background: var(--start);
+      color: #06240f;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .error {
+      min-height: 1.4em;
+      margin: 10px 0 0;
+      color: var(--bench);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .hidden { display: none; }
+
+    /* Flip animation */
+    .flipper {
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: 700;
+      padding: 40px 0;
+      word-break: break-word;
+    }
+
+    /* Result */
+    .label-start, .label-bench {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .label-start { color: var(--start); }
+    .label-bench { color: var(--bench); }
+
+    .start-box {
+      text-align: center;
+      border: 2px solid var(--start);
+      border-radius: 12px;
+      padding: 18px 12px;
+      margin-bottom: 14px;
+    }
+
+    .start-name {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--start);
+      word-break: break-word;
+    }
+
+    .bench-box {
+      text-align: center;
+      border: 1px solid var(--bench);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 18px;
+    }
+
+    .bench-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--bench);
+      word-break: break-word;
+    }
+
+    .reason {
+      text-align: center;
+      font-size: 1rem;
+      line-height: 1.45;
+      margin: 0 0 10px;
+    }
+
+    .confidence {
+      text-align: center;
+      color: var(--muted);
+      margin: 0 0 22px;
+    }
+
+    .confidence strong { color: var(--text); }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pop { animation: pop 0.3s ease-out; }
+
+    @keyframes pop {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    footer {
+      margin-top: 18px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (min-width: 600px) {
+      .card { padding: 36px 32px; }
+      h1 { font-size: 2.4rem; }
+      .actions { flex-direction: row; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1><span class="accent-start">Start</span> or <span class="accent-sit">Sit</span></h1>
+    <p class="tagline">Can't decide? Let the app pick.</p>
+
+    <!-- Input form -->
+    <section id="form-view">
+      <label for="player1">Player 1</label>
+      <input id="player1" type="text" placeholder="Enter a player" autocomplete="off">
+
+      <label for="player2">Player 2</label>
+      <input id="player2" type="text" placeholder="Enter a player" autocomplete="off">
+
+      <button id="decide-btn" class="btn-primary" type="button">Decide</button>
+      <p id="error" class="error" role="alert"></p>
+    </section>
+
+    <!-- Flip animation -->
+    <section id="flip-view" class="hidden">
+      <div id="flipper" class="flipper" aria-live="polite"></div>
+    </section>
+
+    <!-- Result -->
+    <section id="result-view" class="hidden" aria-live="polite">
+      <div class="start-box pop">
+        <div class="label-start">Start</div>
+        <div id="start-name" class="start-name"></div>
+      </div>
+      <div class="bench-box">
+        <div class="label-bench">Bench</div>
+        <div id="bench-name" class="bench-name"></div>
+      </div>
+      <p id="reason" class="reason"></p>
+      <p class="confidence">Confidence: <strong id="confidence"></strong></p>
+      <div class="actions">
+        <button id="again-btn" class="btn-primary" type="button">Decide again</button>
+        <button id="new-btn" class="btn-secondary" type="button">New matchup</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>Just for fun. Picks are random, not real advice.</footer>
+
+  <script>
+    const reasons = [
+      "Gut feeling says {name}. Trust the gut.",
+      "If {name} busts, blame the app, not yourself.",
+      "The stars have aligned for {name} this week.",
+      "{name} has main character energy right now.",
+      "A coin flip would have said {name} too. Probably.",
+      "Your league chat will be quiet after {name} goes off.",
+      "{name} just feels like a big week waiting to happen.",
+      "Fortune favors the bold. Fortune favors {name}.",
+      "The vibes are immaculate for {name}.",
+      "Overthinking is the enemy. Start {name} and move on.",
+      "{name} is due. That's just math. (It is not math.)",
+      "Somewhere, a fantasy expert agrees with {name}. Maybe."
+    ];
+
+    const player1 = document.getElementById("player1");
+    const player2 = document.getElementById("player2");
+    const decideBtn = document.getElementById("decide-btn");
+    const errorEl = document.getElementById("error");
+    const formView = document.getElementById("form-view");
+    const flipView = document.getElementById("flip-view");
+    const flipper = document.getElementById("flipper");
+    const resultView = document.getElementById("result-view");
+    const startName = document.getElementById("start-name");
+    const benchName = document.getElementById("bench-name");
+    const reasonEl = document.getElementById("reason");
+    const confidenceEl = document.getElementById("confidence");
+    const againBtn = document.getElementById("again-btn");
+    const newBtn = document.getElementById("new-btn");
+
+    let names = [];
+    let flipping = false;
+
+    function show(view) {
+      [formView, flipView, resultView].forEach(function (v) {
+        v.classList.toggle("hidden", v !== view);
+      });
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function validate() {
+      const a = player1.value.trim();
+      const b = player2.value.trim();
+      if (!a || !b) return { error: "Enter both players first." };
+      if (a.toLowerCase() === b.toLowerCase()) return { error: "Enter two different players." };
+      return { names: [a, b] };
+    }
+
+    function decide() {
+      if (flipping) return;
+      const check = validate();
+      if (check.error) {
+        errorEl.textContent = check.error;
+        return;
+      }
+      errorEl.textContent = "";
+      names = check.names;
+      runPick();
+    }
+
+    function runPick() {
+      flipping = true;
+      show(flipView);
+
+      // Flip between the two names for about one second
+      let i = 0;
+      flipper.textContent = names[0];
+      const timer = setInterval(function () {
+        i++;
+        flipper.textContent = names[i % 2];
+      }, 90);
+
+      setTimeout(function () {
+        clearInterval(timer);
+        const winner = randomInt(0, 1);
+        const chosen = names[winner];
+        const other = names[1 - winner];
+        const reason = reasons[randomInt(0, reasons.length - 1)];
+
+        startName.textContent = chosen;
+        benchName.textContent = other;
+        reasonEl.textContent = reason.split("{name}").join(chosen);
+        confidenceEl.textContent = randomInt(51, 99) + "%";
+
+        // Restart the pop animation on each result
+        const box = resultView.querySelector(".start-box");
+        box.classList.remove("pop");
+        void box.offsetWidth;
+        box.classList.add("pop");
+
+        show(resultView);
+        flipping = false;
+      }, 1000);
+    }
+
+    function newMatchup() {
+      player1.value = "";
+      player2.value = "";
+      errorEl.textContent = "";
+      names = [];
+      show(formView);
+      player1.focus();
+    }
+
+    decideBtn.addEventListener("click", decide);
+    againBtn.addEventListener("click", function () {
+      if (!flipping) runPick();
+    });
+    newBtn.addEventListener("click", newMatchup);
+
+    [player1, player2].forEach(function (input) {
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") decide();
+      });
+      input.addEventListener("input", function () {
+        errorEl.textContent = "";
+      });
+    });
+  </script>
+</body>
+</html>
